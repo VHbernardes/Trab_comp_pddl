@@ -1,60 +1,53 @@
 import sys
 import os
-from .parser import Parser # Importa a classe Parser do seu modulo parser.py
+from .ast import parse_file_to_ast
 
-def read_source_file(file_path: str) -> str:
-    """
-    Funcao utilitaria para ler o conteudo de um arquivo.
-    """
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"File not found: {file_path}")
-    with open(file_path, 'r') as file:
-        return file.read()
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-def main():
-    """
-    Funcao principal do programa.
-    Espera dois argumentos de linha de comando: o caminho para o arquivo de dominio PDDL
-    e o caminho para o arquivo de problema PDDL.
-    """
-    if len(sys.argv) < 3:
-        print(f"Usage: python3 {sys.argv[0]} <domain.pddl> <problem.pddl>")
-        sys.exit(1) # Sai com codigo de erro 1
+from src.parser import Parser
+from src.lexer import Lexer, TokenCode
 
-    domain_file = sys.argv[1]
-    problem_file = sys.argv[2]
-
-    # Processa o arquivo de dominio
+def analyze_pddl_file(file_path: str):
+    print(f"\n--- Analisando Arquivo: {file_path} ---")
     try:
-        print(f"--- Analyzing Domain File: {domain_file} ---")
-        domain_code = read_source_file(domain_file)
-        domain_parser = Parser(domain_code)
-        domain_parser.parse()
-        print(f"SUCCESS: {domain_file} is syntactically correct.\n")
-    except FileNotFoundError as e:
-        print(f"ERROR: {e}\n")
-        sys.exit(1)
-    except RuntimeError as e:
-        # A excecao do parser ja contem a mensagem detalhada
-        print(f"REJECTED: {domain_file} - {e}\n")
-        sys.exit(1)
-    
-    # Processa o arquivo de problema
-    try:
-        print(f"--- Analyzing Problem File: {problem_file} ---")
-        problem_code = read_source_file(problem_file)
-        problem_parser = Parser(problem_code)
-        problem_parser.parse()
-        print(f"SUCCESS: {problem_file} is syntactically correct.\n")
-    except FileNotFoundError as e:
-        print(f"ERROR: {e}\n")
-        sys.exit(1)
-    except RuntimeError as e:
-        # A excecao do parser ja contem a mensagem detalhada
-        print(f"REJECTED: {problem_file} - {e}\n")
-        sys.exit(1)
+        with open(file_path, 'r', encoding='utf-8') as f:
+            source_code = f.read()
+        
+        parser = Parser(source_code)
+        success = parser.parse() 
 
-    print("--- All PDDL files analyzed successfully! ---")
+        if success:
+            print(f"SUCESSO: {file_path} está sintaticamente correto.")
+        else:
+            print(f"FALHA: {file_path} contém erros sintáticos.")
+        
+    except RuntimeError as e:
+        print(f"REJEITADO: {file_path} - {e}")
+    except FileNotFoundError:
+        print(f"ERRO: Arquivo não encontrado: {file_path}")
+    except Exception as e:
+        print(f"OCORREU UM ERRO INESPERADO: {e}")
+
+def parse_to_ast(domain_path, problem_path):
+    domain_ast = parse_file_to_ast(domain_path)
+    problem_ast = parse_file_to_ast(problem_path)
+    return domain_ast, problem_ast
 
 if __name__ == "__main__":
-    main()
+    domain_file = "exemplos/domain_helloworld.pddl"
+    problem_file = "exemplos/problem_helloworld.pddl"
+
+    if len(sys.argv) > 1:
+        domain_file = sys.argv[1]
+        if len(sys.argv) > 2:
+            problem_file = sys.argv[2]
+        else:
+            problem_file = None
+
+    analyze_pddl_file(domain_file)
+    
+    if problem_file:
+        print("\n" + "="*60 + "\n")
+        analyze_pddl_file(problem_file)
+    
+    print("\n--- Todos os arquivos PDDL analisados! ---")
